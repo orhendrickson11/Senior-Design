@@ -1,13 +1,4 @@
-# Robot Arm Control System (Development Branch)
+# Software Ready Branch
 
-## Overview
-
-This branch is used for active development and feature integration.
-
-It may contain:
-- New trajectory logic
-- Refactored serial communication
-- Structural changes
-- Minor bugs
-
-This branch should remain **structurally clean but not necessarily production-stable**.
+Upload code or file which are not tested on the robot arm.
+We can upload those successed code into main branch
