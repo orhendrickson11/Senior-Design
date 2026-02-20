@@ -1,3 +1,26 @@
+# Upcoming Tasks:
+# T1. Modify the screw-driving order (currently in a Z-shape pattern)
+#     Suggested pattern modification:
+#     For the subsequent weaving process, we need to start from a fixed point,
+#     so consider fixing one screw at the center of the rectangle!!!
+
+# T2. Encapsulate the Wound_nail function
+#     Issue:
+#     During weaving, if we need to use joint 5 to control the end-effector orientation,
+#     we must ensure that the orientation remains unchanged during movement —
+#     check the user guide.
+
+# T3. Mathematical modeling:
+#     Control the end-effector orientation through joint 5.
+
+# T4. Convert the modeling in T3 into executable code.
+
+# Tips:
+# Check the key names, make sure they are all defined
+# Jupyter lab cannot access arduino port. So, can only use Commend or python IDLE
+#  ---------- Updated on Feb 20th, 2026 ---------- 
+
+
 # robot movement w/ python trigger
 
 import serial
@@ -5,7 +28,7 @@ import time
 from standardbots import models, StandardBotsRobot
 
 # Configure the serial connection 
-arduino = serial.Serial(port='COM5', baudrate=9600, timeout=1)
+arduino = serial.Serial(port='COM9', baudrate=9600, timeout=1)
 
 # create function to write to and read from arduino through serial port
 def write_read(x):
@@ -48,35 +71,35 @@ def move_tooltip_xyz(x_m, y_m, z_m):
 def run_Square_Wound_nail_trajectory():
     # Location in mm
     points = {
-        1: ( 500, 360, 0),
-            11: ( 500, 330, 0),
-            12: ( 470, 360, 0),
-            13: ( 500, 390, 0),
-            14: ( 530, 360, 0),
-        2: ( 250, 740, 0),
-            21: ( 500, 710, 0),
-            22: ( 470, 740, 0),
-            23: ( 500, 770, 0),
-            23: ( 530, 740, 0),
-        3: ( 700, 360, 0),
-            31: (700, 330, 0),
-            32: (670, 360, 0),
-            33: (700, 390, 0),
-            34: (730, 360, 0),
-        4: ( 700, 740, 0),
-            41: (700, 710, 0),
-            42: (670, 740, 0),
-            43: (700, 770, 0),
-            44: (730, 740, 0),
+        1: ( 500, 360, -500),
+            11: ( 500, 330, -500),
+            12: ( 470, 360, -500),
+            13: ( 500, 390, -500),
+            14: ( 530, 360, -500),
+        2: ( 500, 740, -500),
+            21: ( 500, 710, -500),
+            22: ( 470, 740, -500),
+            23: ( 500, 770, -500),
+            24: ( 530, 740, -500),
+        3: ( 700, 360, -500),
+            31: (700, 330, -500),
+            32: (670, 360, -500),
+            33: (700, 390, -500),
+            34: (730, 360, -500),
+        4: ( 700, 740, -500),
+            41: (700, 710, -500),
+            42: (670, 740, -500),
+            43: (700, 770, -500),
+            44: (730, 740, -500),
         # Points will locate in the range of all positive x and y
         # Updated!
     }
 
-    # Order：1 11 12 13 14, 2 21 22 23 24, 3 31 32 33 34, 4 41 42 43 44
-    sequence = [1,11,12,13,14,
-                2,21,22,23,24,
-                3,31,32,33,34,
-                4,41,42,43,44]
+    # Order：1 11 12 13 14, 
+    # 2 21 22 23 24,
+    # 3 31 32 33 34,
+    # 4 41 42 43 44
+    sequence = [1,11,12,13,14,2,21,22,23,24,3,31,32,33,34,4,41,42,43,44]
     for index in sequence:
         x_mm, y_mm, z_mm = points[index]
         
@@ -99,5 +122,4 @@ def speak_to_arduino():
 with sdk.connection():
     run_Square_Wound_nail_trajectory()
     speak_to_arduino()
-    
-    
+
