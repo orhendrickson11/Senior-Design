@@ -1,28 +1,3 @@
-# Upcoming Tasks:
-# T1. Modify the screw-driving order (currently in a Z-shape pattern)
-#     Suggested pattern modification:
-#     For the subsequent weaving process, we need to start from a fixed point,
-#     so consider fixing one screw at the center of the rectangle!!!
-# DONE!
-
-# T2. Encapsulate the Wound_nail function
-#     Issue:
-#     During weaving, if we need to use joint 5 to control the end-effector orientation,
-#     we must ensure that the orientation remains unchanged during movement —
-#     check the user guide.
-# Done!
-
-# T3. Mathematical modeling:
-#     Control the end-effector orientation through joint 5.
-
-# T4. Convert the modeling in T3 into executable code.
-
-# Tips:
-# Check the key names, make sure they are all defined
-# Jupyter lab cannot access arduino port. So, can only use Commend or python IDLE
-#  ---------- Updated on Feb 20th, 2026 ---------- 
-
-
 # robot movement w/ python trigger
 
 import serial
