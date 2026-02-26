@@ -3,6 +3,7 @@
 #     Suggested pattern modification:
 #     For the subsequent weaving process, we need to start from a fixed point,
 #     so consider fixing one screw at the center of the rectangle!!!
+# DONE!
 
 # T2. Encapsulate the Wound_nail function
 #     Issue:
@@ -81,16 +82,16 @@ def run_Square_Wound_nail_trajectory():
             22: ( 470, 740, -500),
             23: ( 500, 770, -500),
             24: ( 530, 740, -500),
-        3: ( 700, 360, -500),
-            31: (700, 330, -500),
-            32: (670, 360, -500),
-            33: (700, 390, -500),
-            34: (730, 360, -500),
-        4: ( 700, 740, -500),
-            41: (700, 710, -500),
-            42: (670, 740, -500),
-            43: (700, 770, -500),
-            44: (730, 740, -500),
+        3: ( 700, 740, -500),
+            31: (700, 710, -500),
+            32: (670, 740, -500),
+            33: (700, 770, -500),
+            34: (730, 740, -500),
+        4: ( 700, 360, -500),
+            41: (700, 330, -500),
+            42: (670, 360, -500),
+            43: (700, 390, -500),
+            44: (730, 360, -500),
         # Points will locate in the range of all positive x and y
         # Updated!
     }
