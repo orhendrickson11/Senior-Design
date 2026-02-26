@@ -10,6 +10,7 @@
 #     During weaving, if we need to use joint 5 to control the end-effector orientation,
 #     we must ensure that the orientation remains unchanged during movement —
 #     check the user guide.
+# Done!
 
 # T3. Mathematical modeling:
 #     Control the end-effector orientation through joint 5.
@@ -47,9 +48,34 @@ sdk = StandardBotsRobot(
   robot_kind=StandardBotsRobot.RobotKind.Live,
 )
 
-# fixed orientation of the tooltip
-Q_IDENTITY = models.Quaternion(1.0, 0.0, -1.0, 0.0)
+# ============ Arm motion start from here ============
+# Default quaternion
 # Quaternion: (1, 0, -1, 0) represents direction towards the groud.
+Q_IDENTITY = models.Quaternion(1.0, 0.0, -1.0, 0.0)
+
+# Current segment-fixed orientation (snapshot from robot)
+ORIENTATION_SNAPSHOT = Q_IDENTITY
+
+
+
+
+# Read CURRENT tooltip orientation (quaternion) from robot once,
+# store it to ORIENTATION_SNAPSHOT for the next motion segment.
+def begin_segment_snapshot_orientation():
+
+    global ORIENTATION_SNAPSHOT
+
+    resp = sdk.movement.position.get_arm_position()
+
+    # SDK compatibility: sometimes payload is in .parsed or .data, or directly on resp
+    arm = getattr(resp, "parsed", None) or getattr(resp, "data", None) or resp
+
+    ori = arm.tooltip_position.orientation
+    q = ori.quaternion
+
+    # Copy to avoid reference issues
+    ORIENTATION_SNAPSHOT = models.Quaternion(q.w, q.x, q.y, q.z)
+
 
 # Function to move tooltip to (x,y,z) in millimeters, orientation fixed.
 def move_tooltip_xyz(x_m, y_m, z_m):
@@ -62,12 +88,13 @@ def move_tooltip_xyz(x_m, y_m, z_m):
             ),
             orientation = models.Orientation(
                 kind = models.OrientationKindEnum.Quaternion,
-                quaternion = Q_IDENTITY,
+                quaternion = ORIENTATION_SNAPSHOT,
             ),
         ),
     )
     sdk.movement.position.set_arm_position(body=body).ok()
 
+    '''
 # Define function trajectory data
 def run_Square_Wound_nail_trajectory():
     # Location in mm
@@ -105,6 +132,27 @@ def run_Square_Wound_nail_trajectory():
         x_mm, y_mm, z_mm = points[index]
         
         move_tooltip_xyz(float(x_mm), float(y_mm), float(z_mm))
+        '''
+
+# Input: nail_point = (x_mm, y_mm, z_mm)
+# Runs 5 points as a group: C, L, D, R, U  (i.e., 1,12,13,14,11 style)
+# Orientation: snapshot ONCE at start; unchanged during these 5 moves.
+def wound_nail(nail_point, dx=30, dy=30):
+    begin_segment_snapshot_orientation()  # snapshot once per call
+
+    x, y, z = nail_point
+
+    C = (x,      y,      z)       # center (nail)
+    L = (x - dx, y,      z)       # left  (12)
+    D = (x,      y + dy, z)       # down  (13)
+    R = (x + dx, y,      z)       # right (14)
+    U = (x,      y - dy, z)       # up    (11)
+
+    move_tooltip_xyz(*C)
+    move_tooltip_xyz(*L)
+    move_tooltip_xyz(*D)
+    move_tooltip_xyz(*R)
+    move_tooltip_xyz(*U)
 
 
 # function to call communication with arduino
@@ -118,9 +166,14 @@ def speak_to_arduino():
 
     arduino.close() # Close the serial connection
 
-        
-
+# ============Main: 4 nails rectangle ============
 with sdk.connection():
-    run_Square_Wound_nail_trajectory()
+    with sdk.connection():
+    wound_nail((500, 360, -500))  # nail 1
+    wound_nail((500, 740, -500))  # nail 2
+    wound_nail((700, 740, -500))  # nail 3
+    wound_nail((700, 360, -500))  # nail 4
+    wound_nail((600, 570, -500))  # central point
+
     speak_to_arduino()
 
