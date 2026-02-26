@@ -69,46 +69,6 @@ def move_tooltip_xyz(x_m, y_m, z_m):
     )
     sdk.movement.position.set_arm_position(body=body).ok()
 
-    '''
-# Define function trajectory data
-def run_Square_Wound_nail_trajectory():
-    # Location in mm
-    points = {
-        1: ( 500, 360, -500),
-            11: ( 500, 330, -500),
-            12: ( 470, 360, -500),
-            13: ( 500, 390, -500),
-            14: ( 530, 360, -500),
-        2: ( 500, 740, -500),
-            21: ( 500, 710, -500),
-            22: ( 470, 740, -500),
-            23: ( 500, 770, -500),
-            24: ( 530, 740, -500),
-        3: ( 700, 740, -500),
-            31: (700, 710, -500),
-            32: (670, 740, -500),
-            33: (700, 770, -500),
-            34: (730, 740, -500),
-        4: ( 700, 360, -500),
-            41: (700, 330, -500),
-            42: (670, 360, -500),
-            43: (700, 390, -500),
-            44: (730, 360, -500),
-        # Points will locate in the range of all positive x and y
-        # Updated!
-    }
-
-    # Order：1 11 12 13 14, 
-    # 2 21 22 23 24,
-    # 3 31 32 33 34,
-    # 4 41 42 43 44
-    sequence = [1,11,12,13,14,2,21,22,23,24,3,31,32,33,34,4,41,42,43,44]
-    for index in sequence:
-        x_mm, y_mm, z_mm = points[index]
-        
-        move_tooltip_xyz(float(x_mm), float(y_mm), float(z_mm))
-        '''
-
 # Input: nail_point = (x_mm, y_mm, z_mm)
 # Runs 5 points as a group: C, L, D, R, U  (i.e., 1,12,13,14,11 style)
 # Orientation: snapshot ONCE at start; unchanged during these 5 moves.
