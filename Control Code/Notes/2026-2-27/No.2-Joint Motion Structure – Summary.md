@@ -89,11 +89,15 @@ The payload requires a list wrapper even if only one joint configuration is sent
 
 The correct hierarchical structure for joint motion is:
 
-`ArmPositionUpdateRequest
+ArmPositionUpdateRequest
+
  ├── kind = JointRotations
+ 
  └── joint_rotations (List)
+ 
  └── ArmJointRotations
- └── joints (Tuple of 6 floats)`
+ 
+ └── joints (Tuple of 6 floats)
 
 This tree must be satisfied exactly to pass SDK validation.
 
@@ -107,4 +111,5 @@ The core principle is:
 Always match the SDK's declared payload tree,
 not assumed naming conventions.
 JUST PRINT THE DECLARIATIONS OUT!!!
+
 ```
