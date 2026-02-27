@@ -14,7 +14,7 @@
 # Done!
 
 # T3. Mathematical modeling:
-#     Control the end-effector orientation through joint 5.
+#     Control the end-effector orientation through joint 5.fun
 
 # T4. Convert the modeling in T3 into executable code.
 
@@ -24,3 +24,6 @@
 
 
 #  ---------- Updated on Feb 27th, 2026 ---------- 
+# Fishished Testing the function: `set_joint_6`
+
+# Function: `begin_segment_snapshot_orientation` wasn't teasted
