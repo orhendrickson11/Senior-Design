@@ -1,4 +1,4 @@
-# Joint Motion Structure – Summary
+# Joint Motion CODE Structure – Summary - Feb 27th
 
 ## 1.Problem Overview
 
@@ -112,4 +112,5 @@ Always match the SDK's declared payload tree,
 not assumed naming conventions.
 JUST PRINT THE DECLARIATIONS OUT!!!
 ```
+
 
