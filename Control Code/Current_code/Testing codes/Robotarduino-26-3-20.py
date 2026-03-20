@@ -5,13 +5,13 @@ from standardbots import models, StandardBotsRobot
 # Set up robot connection over ethernet
 # Set up robot connection over ethernet
 sdk = StandardBotsRobot(
-    url='http://192.168.110.5:3000',
+    # url='http://192.168.110.5:3000',
     # ⬆ used at lab
-    # url = 'https://lobsimn1.sb.app',
+    url = 'https://lobsimn1.sb.app',
     # ⬆ connect to local simulator
-    token='oetrwf0e-yyquw-8eopsk-z8egwu6g',
+    # token='oetrwf0e-yyquw-8eopsk-z8egwu6g',
     # ⬆ used at lab
-    # token = '4k4m-5luub4f4-1n203z6-46hxtg',
+    token = '4k4m-5luub4f4-1n203z6-46hxtg',
     # ⬆ connect to simulator
     robot_kind=StandardBotsRobot.RobotKind.Live,
 )
@@ -92,15 +92,21 @@ def restore_joint_6():
 
 def rotate_joint_6(delta_deg):
     """
-    Rotate joint6 relative to current value
+    Rotate joint6 relative to current value, with debug print
     """
 
     delta_rad = math.radians(delta_deg)
 
+    # ---- Read current state (BEFORE) ----
     resp = sdk.movement.position.get_arm_position()
     arm = getattr(resp, "parsed", None) or getattr(resp, "data", None) or resp
 
     joints = list(arm.joint_rotations)
+
+    before_deg = math.degrees(joints[5])
+    print(f"[Joint6 BEFORE] {before_deg:.2f} deg")
+
+    # ---- Apply relative rotation ----
     joints[5] += delta_rad
 
     body = models.ArmPositionUpdateRequest(
@@ -109,6 +115,15 @@ def rotate_joint_6(delta_deg):
     )
 
     sdk.movement.position.set_arm_position(body=body).ok()
+
+    # ---- Read again (AFTER) ----
+    resp_after = sdk.movement.position.get_arm_position()
+    arm_after = getattr(resp_after, "parsed", None) or getattr(resp_after, "data", None) or resp_after
+
+    joints_after = list(arm_after.joint_rotations)
+
+    after_deg = math.degrees(joints_after[5])
+    print(f"[Joint6 AFTER ] {after_deg:.2f} deg\n")
 
 
 # ================= Nail Motion =================
