@@ -98,7 +98,7 @@ def quaternion_from_axis_angle(axis, angle_rad):
     Initial: Roll = 0°, Pitch = 90°, Yaw = 0°
     Positive rotation angles are determined by the right-hand rule:
         Grasp the shaft with your right hand.
-        Point your thumb in the positive direction of the shaft.
+        Point your thumb in the positive direction of the shaft (pointing the ground).
         The direction in which your four fingers curl corresponds to the positive direction of rotation.
 '''
 def get_downward_drill_orientation(spin_deg):
@@ -237,7 +237,7 @@ with sdk.connection():
     '''
     # Outer circuit
     wound_nail((100, 350, -15))# √
-    #在outer loop
+    #Outer loop
     move_tooltip_xyz(200, 196, -15)
     move_tooltip_xyz(700, 196, -15)
     move_tooltip_xyz(700, 540, -20)
@@ -248,7 +248,7 @@ with sdk.connection():
     wound_nail((100, 350, -15))# √
     wound_nail((245, 350, -15))# √
         
-    #inner loop
+    #Inner loop
     move_tooltip_xyz(480, 270, -15)
     move_tooltip_xyz(480, 570, -25)
     move_tooltip_xyz(200, 690, -25)
@@ -259,7 +259,7 @@ with sdk.connection():
     wound_nail((245, 350, -15))# √
     '''
 
-    # Weaving test
+    # scanfold #1 weaving
     # weave((295, 365, -45), (295, 365, 5), 205)
     #weave((415, 295, -45), (415, 295, 5), 180)
     # weave((395, 415, -45), (395, 415, 5), 150)
