@@ -1,18 +1,26 @@
-# robot movement w/ python trigger
-
-import serial
 import math
+import serial
 import time
 from standardbots import models, StandardBotsRobot
 
-# Configure the serial connection 
-#arduino = serial.Serial(port='COM9', baudrate=9600, timeout=1)
+# ================= Robot Connection =================
+# Set up robot connection over ethernet
+# Set up robot connection over ethernet
+sdk = StandardBotsRobot(
+    url='http://192.168.110.5:3000',
+    # ⬆ used at lab
+    # url = 'https://lobsimn1.sb.app',
+    # ⬆ connect to local simulator
+    token='oetrwf0e-yyquw-8eopsk-z8egwu6g',
+    # ⬆ used at lab
+    # token = '4k4m-5luub4f4-1n203z6-46hxtg',
+    # ⬆ connect to simulator
+    robot_kind=StandardBotsRobot.RobotKind.Live,
+)
 
-#----------------------------------------------------------------------------------------
+# ==================== Arduino Connection ===============
+arduino = serial.Serial('COM5', 9600)  
 
-# create function to write to and read from arduino through serial port
-
-'''
 def write_read(x):
     # Send data to Arduino, encoding it into bytes
     arduino.write(bytes(x, 'utf-8'))
@@ -20,138 +28,255 @@ def write_read(x):
     # Read the response from Arduino, decode it, and strip whitespace
     response = arduino.readline().decode().strip()
     return response
-    '''
 
-#--------------------------------------------------------------------------------------------
+def speak_to_arduino():
+    time.sleep(2) # Wait for Arduino to initialize after connection
+    print("Connected to Arduino")
+    # Send '1' once
+    num = "1" 
+    value = write_read(num)
+    print(f"Arduino responded: {value}")
 
-# Set up robot connection over ethernet
-sdk = StandardBotsRobot(
-  url='http://192.168.110.5:3000',
-  token='oetrwf0e-yyquw-8eopsk-z8egwu6g',
-  robot_kind=StandardBotsRobot.RobotKind.Live,
-)
+    arduino.close() # Close the serial connection
 
-#----------------------------------------------------------------------------------------------
+# ================= Global States =================
+ORIENTATION_SNAPSHOT =  models.Quaternion(1.0, 0.0, -1.0, 0.0)
 
-# ============ Arm motion start from here ============
+# Current orientation (used for true task-space control)
+CURRENT_ORIENTATION = models.Quaternion(1.0, 0.0, -1.0, 0.0)
 
-#------------------------------------------------------------------------------------------------
-# Default quaternion
-# Quaternion: (1, 0, -1, 0) represents direction towards the groud.
-Q_IDENTITY = models.Quaternion(1.0, 0.0, -1.0, 0.0)
-
-# Current segment-fixed orientation (snapshot from robot)
-ORIENTATION_SNAPSHOT = Q_IDENTITY
-
-#---------------------------------------------------------------------------------------------------
+# spin control 
+CURRENT_SPIN_DEG = 0.0
 
 
-# Read CURRENT tooltip orientation (quaternion) from robot once,
-# store it to ORIENTATION_SNAPSHOT for the next motion segment.
+# ================= Quaternion Utilities =================
+def quaternion_multiply(q1, q2):
+    """
+    Multiply two quaternions (q1 ⊗ q2)
+    Used for LOCAL rotation (tool frame)
+    
+    --- why using local rotation? ---
+    
+    """
+    return models.Quaternion(
+        x=q1.w*q2.x + q1.x*q2.w + q1.y*q2.z - q1.z*q2.y,
+        y=q1.w*q2.y - q1.x*q2.z + q1.y*q2.w + q1.z*q2.x,
+        z=q1.w*q2.z + q1.x*q2.y - q1.y*q2.x + q1.z*q2.w,
+        w=q1.w*q2.w - q1.x*q2.x - q1.y*q2.y - q1.z*q2.z
+    )
+
+
+def quaternion_from_axis_angle(axis, angle_rad):
+    """
+    Create quaternion from axis-angle (axis must be normalized)
+    Axis is a unit vector
+
+    Ex:
+    Rotate the tool 90° around the Z-axis:
+        axis = (0, 0, 1)
+        angle = π/2
+
+    Get:
+        s = sin(π/4) = 0.707
+        w = cos(π/4) = 0.707
+
+    Output (Quaternions):
+        q = (0, 0, 0.707, 0.707)
+        
+    """
+    s = math.sin(angle_rad / 2.0)
+    return models.Quaternion(
+        x=axis[0] * s,
+        y=axis[1] * s,
+        z=axis[2] * s,
+        w=math.cos(angle_rad / 2.0)
+    )
+
+
+# ================= Oritation Generation (Head Down + Self-Rotation) =================
+'''
+    Initial: Roll = 0°, Pitch = 90°, Yaw = 0°
+    Positive rotation angles are determined by the right-hand rule:
+        Grasp the shaft with your right hand.
+        Point your thumb in the positive direction of the shaft.
+        The direction in which your four fingers curl corresponds to the positive direction of rotation.
+'''
+def get_downward_drill_orientation(spin_deg):
+    q_base = quaternion_from_axis_angle((0, 1, 0), math.radians(90))
+    q_spin = quaternion_from_axis_angle((1, 0, 0), math.radians(spin_deg))
+    return quaternion_multiply(q_base, q_spin)
+
+
+# ================= Snapshot Function =================
 def begin_segment_snapshot_orientation():
+    """
+    Save current tooltip orientation (task-space only)
+    """
 
     global ORIENTATION_SNAPSHOT
+    global CURRENT_ORIENTATION
 
     resp = sdk.movement.position.get_arm_position()
-
-    # SDK compatibility: sometimes payload is in .parsed or .data, or directly on resp
     arm = getattr(resp, "parsed", None) or getattr(resp, "data", None) or resp
 
+    # ---- Save orientation ----
     ori = arm.tooltip_position.orientation
     q = ori.quaternion
-    print("DEGBUG q type:", type(q))
-    print("DEBUG q:", q)
-    # Copy to avoid reference issues
     ORIENTATION_SNAPSHOT = models.Quaternion(x=q.x, y=q.y, z=q.z, w=q.w)
-    
 
-#-----------------------------------------------------------------------------------------------------
+    # Sync current orientation
+    CURRENT_ORIENTATION = models.Quaternion(x=q.x, y=q.y, z=q.z, w=q.w)
 
-# Function to move tooltip to (x,y,z) in millimeters, orientation fixed.
+    # print("[Snapshot] Orientation captured")
+
+
+# ================= Move Function (IK only) =================
 def move_tooltip_xyz(x_m, y_m, z_m):
+    """
+    Move tooltip using IK (position + fixed orientation)
+    """
 
-    Q_IDENTITY = models.Quaternion(1.0, 0.0, -1.0, 0.0)
+    global CURRENT_SPIN_DEG
+
     body = models.ArmPositionUpdateRequest(
-        kind = models.ArmPositionUpdateRequestKindEnum.TooltipPosition,
-        tooltip_position = models.PositionAndOrientation(
-            position = models.Position(
-                x = float(x_m), y = float(y_m), z = float(z_m),
+        kind=models.ArmPositionUpdateRequestKindEnum.TooltipPosition,
+        tooltip_position=models.PositionAndOrientation(
+            position=models.Position(
+                x=float(x_m),
+                y=float(y_m),
+                z=float(z_m),
                 unit_kind=models.LinearUnitKind.Millimeters,
             ),
-            orientation = models.Orientation(
-                kind = models.OrientationKindEnum.Quaternion,
-                quaternion = (ORIENTATION_SNAPSHOT),
+            orientation=models.Orientation(
+                kind=models.OrientationKindEnum.Quaternion,
+                quaternion=get_downward_drill_orientation(CURRENT_SPIN_DEG),
             ),
         ),
     )
-    sdk.movement.position.set_arm_position(body=body).ok()
-
-#------------------------------------------------------------------------------------------------------------
-# Set Tooltip rotation tip to a certain position
-
-def set_joint_6(x, y, extra_offset=0.0):
-
-    resp = sdk.movement.position.get_arm_position()
-    arm = getattr(resp, "parsed", None) or getattr(resp, "data", None) or resp
-
-    joints = list(arm.joint_rotations)  # tuple -> list (for editing)
-
-    delta = math.atan2(y, x) + float(extra_offset)
-
-    # Using absolute value currently：
-    joints[5] = delta
-    # Accumulated：joints[5] = joints[5] + delta
-
-    if len(joints) != 6:
-        raise ValueError(f"Expected 6 joints, got {len(joints)}: {joints}")
-
-    body = models.ArmPositionUpdateRequest(
-        kind=models.ArmPositionUpdateRequestKindEnum.JointRotations,
-        joint_rotations=[models.ArmJointRotations(joints=tuple(joints))],
-    )
+    q = get_downward_drill_orientation(CURRENT_SPIN_DEG)
+    print("spin =", CURRENT_SPIN_DEG, "-> q =", q)
 
     sdk.movement.position.set_arm_position(body=body).ok()
 
-# Input: nail_point = (x_mm, y_mm, z_mm)
-# Runs 5 points as a group: C, L, D, R, U  (i.e., 1,12,13,14,11 style)
-# Orientation: snapshot ONCE at start; unchanged during these 5 moves.
-def wound_nail(nail_point, dx=30, dy=30):
-  #  begin_segment_snapshot_orientation()  # snapshot once per call
+
+# ================= Nail Motion =================
+def wound_nail(nail_point, dx=30, dy=30, delta_deg=0):
+    """
+    Execute cross pattern around a nail, then rotate joint6
+    """
+
+    # ---- Step 1: Snapshot ----
+    begin_segment_snapshot_orientation()
 
     x, y, z = nail_point
 
-    C = (x,      y,      z)       # center (nail)
-    L = (x - dx, y,      z)       # left  (12)
-    D = (x,      y + dy, z)       # down  (13)
-    R = (x + dx, y,      z)       # right (14)
-    U = (x,      y - dy, z)       # up    (11)
+    C = (x,      y,      z)
+    L = (x - dx, y,      z)
+    D = (x,      y + dy, z)
+    R = (x + dx, y,      z)
+    U = (x,      y - dy, z)
 
-    move_tooltip_xyz(*C)
+    # ---- Step 2: IK Motion (joint6 allowed to drift) ----
+    move_tooltip_xyz(*U)
     move_tooltip_xyz(*L)
     move_tooltip_xyz(*D)
     move_tooltip_xyz(*R)
     move_tooltip_xyz(*U)
-    set_joint_6(x,y)
+    move_tooltip_xyz(*L)
+    move_tooltip_xyz(*D)
+    move_tooltip_xyz(*R)
+    move_tooltip_xyz(*U)
+    move_tooltip_xyz(*L)
+    move_tooltip_xyz(*D)
 
 
-# function to call communication with arduino
-#def speak_to_arduino():
-   # time.sleep(2) # Wait for Arduino to initialize after connection
-   # print("Connected to Arduino")
-    # Send '1' once
-   # num = "1" 
-   # value = write_read(num)
-   # print(f"Arduino responded: {value}")
 
-   # arduino.close() # Close the serial connection
+# ================= Weave =================
+def weave(target_point, safe_point, spin_deg):
+    """
+    target_point: (x, y, z_work)
+    safe_point:   (x, y, z_safe)  
+    """
 
-# ============Main: 4 nails rectangle ============
+    global CURRENT_SPIN_DEG
+
+    target_x, target_y, target_z = target_point
+    safe_x, safe_y, safe_z = safe_point
+
+    # --- Step 1: set orientation ---
+    CURRENT_SPIN_DEG = spin_deg
+    # print(f"[WEAVE] Spin = {spin_deg}")
+
+    # --- Step 2: move to safe point ---
+    # print(f"[WEAVE] Move to safe ({safe_x}, {safe_y}, {safe_z})\n")
+    move_tooltip_xyz(safe_x, safe_y, safe_z)
+
+    # --- Step 3: move down to target ---
+    # print(f"[WEAVE] Move to target ({target_x}, {target_y}, {target_z})")
+    move_tooltip_xyz(target_x, target_y, target_z)
+
+    # --- Step 4: Motor Rotation:
+    speak_to_arduino()
+
+    # --- Step 5: move back to safe point ---
+    # print(f"[WEAVE] Move to safe ({safe_x}, {safe_y}, {safe_z})\n")
+    move_tooltip_xyz(safe_x, safe_y, safe_z)
+
+
+# ================= Main =================
 with sdk.connection():
-    with sdk.connection():
-        wound_nail((500, 360, -200))  # nail 1
-        wound_nail((500, 740, -200))  # nail 2
-        wound_nail((700, 740, -200))  # nail 3
-        wound_nail((700, 360, -200))  # nail 4
-        wound_nail((600, 570, -200))  # central point
+    '''
+    # Sample code for weaving
+    move_tooltip_xyz(200, 196, 50)
+    move_tooltip_xyz(200, 396, 100)
+    weave((300, 396, 50), (300, 396, 100), 45)
+    # These three lines are only used for testing
+    '''
+    
+    
+    '''
+    # Outer circuit
+    wound_nail((100, 350, -15))# √
+    #在outer loop
+    move_tooltip_xyz(200, 196, -15)
+    move_tooltip_xyz(700, 196, -15)
+    move_tooltip_xyz(700, 540, -20)
+    move_tooltip_xyz(600, 680, -25)
+    move_tooltip_xyz(0, 740, -15)
+    move_tooltip_xyz(0, 340, -15)
+    
+    wound_nail((100, 350, -15))# √
+    wound_nail((245, 350, -15))# √
+        
+    #inner loop
+    move_tooltip_xyz(480, 270, -15)
+    move_tooltip_xyz(480, 570, -25)
+    move_tooltip_xyz(200, 690, -25)
+    move_tooltip_xyz(120, 540, -25)
+    
+    move_tooltip_xyz(120, 330, -15)
+    move_tooltip_xyz(320, 330, -15)
+    wound_nail((245, 350, -15))# √
+    '''
 
-    #speak_to_arduino()
+    # Weaving test
+    # weave((295, 365, -45), (295, 365, 5), 205)
+    #weave((415, 295, -45), (415, 295, 5), 180)
+    # weave((395, 415, -45), (395, 415, 5), 150)
+    # weave((515, 415, -45), (515, 415, 5), 115)
+    # weave((410, 515, -45), (410, 515, 5), 90)
+    # weave((410, 665, -45), (410, 665, 5), 60)
+    # weave((310, 590, -45), (310, 590, 5), 20)
+    # weave((260, 690, -60), (260, 690, 5), 0)
+    # weave((240, 570, -60), (240, 570, 5), 330)
+    # weave((100, 470, -60), (100, 470, 5), 290)
+    # weave((190, 460, -50), (190, 460, 5), 260)
+    weave((170, 320, -50), (170, 320, 5), 250)
+    # weave((295, 365, -45), (295, 365, 5), 205)
+
+    
+    '''
+    THIS IS ABSOLUTE POSITION --- BE CAREFUL
+    '''
+
+# Central point of the scanfold (290, 480)
