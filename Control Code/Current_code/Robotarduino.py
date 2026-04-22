@@ -95,7 +95,11 @@ def quaternion_from_axis_angle(axis, angle_rad):
         
     '''
 
-# ================= Oritation Generation (Head Down + Self-Rotation) =================
+
+def get_downward_drill_orientation(spin_deg):
+    q_base = quaternion_from_axis_angle((0, 1, 0), math.radians(90))
+    q_spin = quaternion_from_axis_angle((1, 0, 0), math.radians(spin_deg))
+    return quaternion_multiply(q_base, q_spin)
 '''
     Initial: Roll = 0°, Pitch = 90°, Yaw = 0°
     Positive rotation angles are determined by the right-hand rule:
@@ -103,14 +107,10 @@ def quaternion_from_axis_angle(axis, angle_rad):
         Point your thumb in the positive direction of the shaft (pointing the ground).
         The direction in which your four fingers curl corresponds to the positive direction of rotation.
 '''
-def get_downward_drill_orientation(spin_deg):
-    q_base = quaternion_from_axis_angle((0, 1, 0), math.radians(90))
-    q_spin = quaternion_from_axis_angle((1, 0, 0), math.radians(spin_deg))
-    return quaternion_multiply(q_base, q_spin)
 
 
 # ================= Move Function=================
-def move_tooltip_xyz(x_m, y_m, z_m):
+def move_tooltip_xyz(x_mm, y_mm, z_mm):
     """
      Move tooltip using IK (position + fixed orientation)
     """
@@ -121,9 +121,9 @@ def move_tooltip_xyz(x_m, y_m, z_m):
         kind=models.ArmPositionUpdateRequestKindEnum.TooltipPosition,
         tooltip_position=models.PositionAndOrientation(
             position=models.Position(
-                x=float(x_m),
-                y=float(y_m),
-                z=float(z_m),
+                x=float(x_mm),
+                y=float(y_mm),
+                z=float(z_mm),
                 unit_kind=models.LinearUnitKind.Millimeters,
             ),
             orientation=models.Orientation(
@@ -139,10 +139,6 @@ def move_tooltip_xyz(x_m, y_m, z_m):
 
 # This function let the tooltip move to a traget point with a defined rotation angle
 def move_with_agnle(target_point, spin_deg):
-    """
-    target_point: (x, y, z_work)
-    safe_point:   (x, y, z_safe)  
-    """
 
     global CURRENT_SPIN_DEG
 
@@ -162,7 +158,7 @@ def move_with_agnle(target_point, spin_deg):
 # Only need to adjust the unit vector below:
 # q_base = quaternion_from_axis_angle((0, 1, 0), math.radians(90))
 '''
-def move_tooltip(x_m, y_m, z_m):
+def move_tooltip(x_mm, y_mm, z_mm):
     
     global CURRENT_SPIN_DEG
 
@@ -170,9 +166,9 @@ def move_tooltip(x_m, y_m, z_m):
         kind=models.ArmPositionUpdateRequestKindEnum.TooltipPosition,
         tooltip_position=models.PositionAndOrientation(
             position=models.Position(
-                x=float(x_m),
-                y=float(y_m),
-                z=float(z_m),
+                x=float(x_mm),
+                y=float(y_mm),
+                z=float(z_mm),
                 unit_kind=models.LinearUnitKind.Millimeters,
             ),
             orientation=models.Orientation(
@@ -193,11 +189,8 @@ def get_orientation(spin_deg):
 '''
 
 
-# ================= Nail Motion =================
-def wound_nail(nail_point, dx=30, dy=30, delta_deg=0):
-    """
-    Execute cross pattern around a nail, then rotate joint6
-    """
+# ================= Nail Looping =================
+def wound_nail(nail_point, dx=30, dy=30):
 
     x, y, z = nail_point
 
@@ -217,7 +210,7 @@ def wound_nail(nail_point, dx=30, dy=30, delta_deg=0):
     move_tooltip_xyz(*D)
 
 # Same as wound_nail(), but this function only loop once
-def wound_nail_less_loop(nail_point, dx=30, dy=30, delta_deg=0):
+def wound_nail_less_loop(nail_point, dx=30, dy=30):
     """
     Execute cross pattern around a nail, then rotate joint6
     """
@@ -236,10 +229,6 @@ def wound_nail_less_loop(nail_point, dx=30, dy=30, delta_deg=0):
     move_tooltip_xyz(*D)
     move_tooltip_xyz(*R)
     move_tooltip_xyz(*U)
-
-
-
-
 
 # ================= Weave =================
 def weave(target_point, safe_point, spin_deg):
